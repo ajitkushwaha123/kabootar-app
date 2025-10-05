@@ -1,3 +1,4 @@
+import { addWhatsappEventToQueue } from "@/lib/bullmq/job/addWhatsappEventToQueue";
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 
@@ -17,6 +18,9 @@ export async function GET(req) {
   return new NextResponse("Forbidden", { status: 403 });
 }
 
+/**
+ * 🔐 Verify incoming webhook signature
+ */
 function verifySignature(rawBody, signature) {
   const appSecret = process.env.WHATSAPP_APP_SECRET;
   if (!appSecret || !signature) return false;
@@ -39,31 +43,37 @@ function verifySignature(rawBody, signature) {
  * ✅ Handle Webhook Events (POST)
  */
 export async function POST(req) {
-  const rawBody = await req.text(); // keep raw body for signature
+  const rawBody = await req.text(); // keep raw body for signature verification
   const signature = req.headers.get("x-hub-signature-256");
 
+  // 🔐 Enable in production
   if (!verifySignature(rawBody, signature)) {
     return new NextResponse("Invalid signature", { status: 403 });
   }
 
   const body = JSON.parse(rawBody);
 
-  // 🔹 Capture and process event
   if (body.object === "whatsapp_business_account") {
     const entry = body.entry?.[0];
     const changes = entry?.changes?.[0]?.value;
 
-    if (changes?.messages) {
-      for (const msg of changes.messages) {
-        console.log("📩 Incoming message:", msg);
-        // TODO: Save to DB or enqueue for processing
-      }
-    }
+    if (changes) {
+      console.log("📥 WhatsApp Webhook Event Received:", changes);
 
-    if (changes?.statuses) {
-      for (const status of changes.statuses) {
-        console.log("📡 Status update:", status);
-        // TODO: Update message status in DB
+      // enqueue full payload for async processing
+      await addWhatsappEventToQueue({ payload: changes });
+
+      // 👀 Debug logs (optional, can remove later)
+      if (changes.messages) {
+        for (const msg of changes.messages) {
+          console.log("📩 Incoming message:", msg);
+        }
+      }
+
+      if (changes.statuses) {
+        for (const status of changes.statuses) {
+          console.log("📡 Status update:", status);
+        }
       }
     }
   }
