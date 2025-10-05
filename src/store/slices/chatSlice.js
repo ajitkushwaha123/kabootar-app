@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import axios from "axios"; // you forgot to import axios
+import axios from "axios";
 
 const initialState = {
   messages: [],
@@ -7,13 +7,12 @@ const initialState = {
   error: null,
 };
 
-// Async thunk for sending a message
 export const sendMessage = createAsyncThunk(
   "chat/sendMessage",
   async (messageData, { rejectWithValue }) => {
     try {
       const response = await axios.post(
-        "/api/organization/message/send-message",
+        "/api/organization/inbox/message/send-message",
         messageData
       );
       return response.data;
@@ -47,7 +46,7 @@ const chatSlice = createSlice({
       })
       .addCase(sendMessage.fulfilled, (state, action) => {
         state.loading = false;
-        // state.messages.push(action.payload.data); 
+        // state.messages.push(action.payload.data);
       })
       .addCase(sendMessage.rejected, (state, action) => {
         state.loading = false;
