@@ -1,4 +1,5 @@
 import { addWhatsappEventToQueue } from "@/lib/bullmq/job/addWhatsappEventToQueue";
+import { auth } from "@clerk/nextjs/server";
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 
@@ -43,7 +44,7 @@ function verifySignature(rawBody, signature) {
  * ✅ Handle Webhook Events (POST)
  */
 export async function POST(req) {
-  const rawBody = await req.text(); // keep raw body for signature verification
+  const rawBody = await req.text();
   const signature = req.headers.get("x-hub-signature-256");
 
   // 🔐 Enable in production
@@ -51,7 +52,15 @@ export async function POST(req) {
     return new NextResponse("Invalid signature", { status: 403 });
   }
 
-  const body = JSON.parse(rawBody);
+  let body;
+  try {
+    body = JSON.parse(rawBody);
+  } catch (err) {
+    return NextResponse.json(
+      { success: false, message: "Invalid JSON" },
+      { status: 400 }
+    );
+  }
 
   if (body.object === "whatsapp_business_account") {
     const entry = body.entry?.[0];
@@ -60,20 +69,23 @@ export async function POST(req) {
     if (changes) {
       console.log("📥 WhatsApp Webhook Event Received:", changes);
 
+      const { orgId } = await auth();
+      changes.orgId = orgId; // attach orgId for downstream processing
+
       // enqueue full payload for async processing
       await addWhatsappEventToQueue({ payload: changes });
 
-      // 👀 Debug logs (optional, can remove later)
+      // Optional debug logs
       if (changes.messages) {
-        for (const msg of changes.messages) {
-          console.log("📩 Incoming message:", msg);
-        }
+        changes.messages.forEach((msg) =>
+          console.log("📩 Incoming message:", msg)
+        );
       }
 
       if (changes.statuses) {
-        for (const status of changes.statuses) {
-          console.log("📡 Status update:", status);
-        }
+        changes.statuses.forEach((status) =>
+          console.log("📡 Status update:", status)
+        );
       }
     }
   }

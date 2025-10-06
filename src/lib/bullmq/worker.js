@@ -1,55 +1,78 @@
 import { Worker } from "bullmq";
-import IORedis from "ioredis";
+import Redis from "ioredis";
+import dotenv from "dotenv";
+import axios from "axios";
 
-const connection = new IORedis(process.env.REDIS_URL);
+dotenv.config();
+
+// Validate environment variables
+if (!process.env.MONGODB_URI) {
+  throw new Error("Missing MONGODB_URI in .env file");
+}
+if (!process.env.REDIS_URL) {
+  throw new Error("Missing REDIS_URL in .env file");
+}
+
+const connection = new Redis(process.env.REDIS_URL, {
+  maxRetriesPerRequest: null,
+});
 
 const worker = new Worker(
-  "whatsapp-events",
+  "whatsappEventQueue",
   async (job) => {
-    const { payload } = job.data;
+    console.log("Processing job:", job.id, "with data:", job.data);
 
-    // 1. Handle messages
-    if (payload.messages) {
-      for (const msg of payload.messages) {
-        // Example: upsert customer & message in DB
-        await db.customer.upsert({
-          where: { wa_id: msg.from },
-          update: { last_message_at: new Date(msg.timestamp * 1000) },
-          create: {
-            wa_id: msg.from,
-            name: msg?.profile?.name || null,
-            last_message_at: new Date(msg.timestamp * 1000),
-          },
-        });
+    try {
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/organization/inbox/message/received-message`,
+        job.data
+      );
 
-        await db.message.create({
-          data: {
-            wa_message_id: msg.id,
-            customer_id: msg.from,
-            direction: "inbound",
-            type: msg.type,
-            body: JSON.stringify(msg[msg.type]),
-            timestamp: new Date(msg.timestamp * 1000),
-          },
-        });
+      // Optional: Check status explicitly
+      if (response.status < 200 || response.status >= 300) {
+        throw new Error(`Unexpected status code: ${response.status}`);
       }
-    }
 
-    // 2. Handle status updates
-    if (payload.statuses) {
-      for (const status of payload.statuses) {
-        await db.message.update({
-          where: { wa_message_id: status.id },
-          data: { status: status.status },
-        });
-      }
-    }
+      console.log("Job processed successfully:", job.id, response.data);
+      return response.data;
+    } catch (err) {
+      console.error(
+        `❌ Error processing job ${job.id}:`,
+        err.response?.data || err.message
+      );
 
-    console.log("✅ Processed job:", job.id);
+      // Throw the error so BullMQ marks the job as failed
+      throw err;
+    }
   },
-  { connection }
+  {
+    connection,
+    removeOnComplete: true,
+    removeOnFail: false,
+  }
 );
 
-worker.on("failed", (job, err) => {
-  console.error("❌ Job failed:", job.id, err);
+console.log(
+  "🚀 Worker started and listening for jobs in 'whatsappEventQueue' queue"
+);
+
+// Event listeners
+worker.on("completed", (job) => {
+  console.log(`✅ Job ${job.id} completed`);
 });
+
+worker.on("failed", (job, err) => {
+  console.error(`❌ Job ${job?.id} failed: ${err.message}`);
+});
+
+// Graceful shutdown
+const shutdown = async () => {
+  console.log("Closing worker...");
+  await worker.close();
+  process.exit(0);
+};
+
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
+
+export default worker;
