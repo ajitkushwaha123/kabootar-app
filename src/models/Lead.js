@@ -4,10 +4,8 @@ const leadSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     phone: { type: String, required: true, unique: true },
-    email: { type: String, default: null },
-    organizationId: { type: String, required: true }, // Clerk orgId
+    organizationId: { type: String, required: true },
     source: { type: String, default: "meta_ads" },
-    campaignId: { type: String, default: null },
     adId: { type: String, default: null },
     status: {
       type: String,
@@ -15,7 +13,7 @@ const leadSchema = new mongoose.Schema(
       default: "new",
     },
     assignedTo: {
-      type: [String], // Clerk userIds
+      type: [String],
       default: [],
     },
     metadata: {
@@ -32,5 +30,5 @@ leadSchema.index({ organizationId: 1 });
 leadSchema.index({ phone: 1, organizationId: 1 }, { unique: true });
 leadSchema.index({ status: 1 });
 
-const Lead = mongoose.model("Lead", leadSchema);
+const Lead = mongoose.models.Lead || mongoose.model("Lead", leadSchema);
 export default Lead;

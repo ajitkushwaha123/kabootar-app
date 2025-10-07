@@ -5,7 +5,6 @@ import axios from "axios";
 
 dotenv.config();
 
-// Validate environment variables
 if (!process.env.MONGODB_URI) {
   throw new Error("Missing MONGODB_URI in .env file");
 }
@@ -25,10 +24,16 @@ const worker = new Worker(
     try {
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_BASE_URL}/api/organization/inbox/message/received-message`,
-        job.data
+        job.data,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
       );
 
-      // Optional: Check status explicitly
+      console.log("Response", response);
+
       if (response.status < 200 || response.status >= 300) {
         throw new Error(`Unexpected status code: ${response.status}`);
       }
@@ -38,17 +43,18 @@ const worker = new Worker(
     } catch (err) {
       console.error(
         `❌ Error processing job ${job.id}:`,
-        err.response?.data || err.message
+        err.response?.data || err.message,
+        err.stack
       );
 
-      // Throw the error so BullMQ marks the job as failed
       throw err;
     }
   },
   {
     connection,
-    removeOnComplete: true,
+    removeOnComplete: true, // or { age: 3600 } for auto-removal after 1h
     removeOnFail: false,
+    lockDuration: 30000,
   }
 );
 

@@ -1,5 +1,4 @@
 import { addWhatsappEventToQueue } from "@/lib/bullmq/job/addWhatsappEventToQueue";
-import { auth } from "@clerk/nextjs/server";
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 
@@ -69,10 +68,6 @@ export async function POST(req) {
     if (changes) {
       console.log("📥 WhatsApp Webhook Event Received:", changes);
 
-      const { orgId } = await auth();
-      changes.orgId = orgId; // attach orgId for downstream processing
-
-      // enqueue full payload for async processing
       await addWhatsappEventToQueue({ payload: changes });
 
       // Optional debug logs

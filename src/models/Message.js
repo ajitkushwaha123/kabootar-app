@@ -3,16 +3,12 @@ import mongoose from "mongoose";
 const messageSchema = new mongoose.Schema(
   {
     leadId: {
-      // type: mongoose.Schema.Types.ObjectId,
-      // ref: "Lead",
-      type: String,
-      required: true,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Lead",
     },
     conversationId: {
-      // type: mongoose.Schema.Types.ObjectId,
-      // ref: "Conversation",
-      type: String,
-      required: true,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Conversation",
     },
     senderId: {
       type: String,
@@ -24,7 +20,7 @@ const messageSchema = new mongoose.Schema(
     },
     senderType: {
       type: String,
-      enum: ["agent", "admin", "system"],
+      enum: ["agent", "admin", "system", "lead"],
       required: true,
     },
     messageType: {
@@ -65,7 +61,7 @@ const messageSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "sent", "delivered", "read", "failed"],
+      enum: ["pending", "sent", "delivered", "read", "failed", "received"],
       default: "sent",
     },
     isDeleted: {

@@ -13,9 +13,9 @@ export const addWhatsappEventToQueue = async ({ payload }) => {
           type: "exponential",
           delay: 3000, // initial delay 3s, grows exponentially
         },
-        removeOnComplete: true, // remove successful jobs
-        removeOnFail: false, // keep failed jobs for debugging
-        lifo: false, // process jobs in FIFO order
+        removeOnComplete: true,
+        removeOnFail: false, 
+        lifo: false,
       }
     );
 
