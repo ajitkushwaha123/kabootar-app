@@ -28,6 +28,8 @@ const connection = new Redis(process.env.REDIS_URL, {
 async function handleEvent(job) {
   const { event, payload } = job.data;
 
+  console.log(`🔄 Routing event: ${event} for JOB:${payload}`);
+
   switch (event) {
     case "whatsapp-message":
       console.log(`💬 Handling WhatsApp message event for JOB:${job.id}`);

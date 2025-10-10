@@ -71,7 +71,7 @@ export async function POST(req) {
       if (Array.isArray(changes.statuses) && changes.statuses.length > 0) {
         console.log("Received statuses:", changes.statuses);
         await addWhatsappEventToQueue({
-          payload: { statuses: changes.statuses },
+          payload: changes,
           event: "whatsapp-status-update",
         });
       }
@@ -79,7 +79,7 @@ export async function POST(req) {
       if (Array.isArray(changes.messages) && changes.messages.length > 0) {
         console.log("Received messages:", changes.messages);
         await addWhatsappEventToQueue({
-          payload: { messages: changes.messages },
+          payload: changes,
           event: "whatsapp-message",
         });
       }
