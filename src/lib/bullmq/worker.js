@@ -47,7 +47,7 @@ async function handleEvent(job) {
 
     default:
       console.warn(`⚠️ [JOB:${job.id}] Unknown event type: ${event}`);
-      return { success: false, message: "Unknown event type", even };
+      return { success: false, message: "Unknown event type", event };
   }
 }
 
@@ -55,7 +55,8 @@ async function handleEvent(job) {
 const worker = new Worker(
   "whatsappEventQueue",
   async (job) => {
-    console.log(`🚀 [JOB:${job.id}] Received event: ${job.data.event}`);
+    console.log(`🚀 [JOB:${job.id}] Received event: ${job.data}`);
+    console.log("Payload:", job.data.messages);
 
     try {
       const response = await handleEvent(job);
