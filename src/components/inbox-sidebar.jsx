@@ -17,6 +17,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
+import { useConversation } from "@/store/hooks/useConversation";
 
 const data = {
   user: {
@@ -31,79 +32,49 @@ const data = {
     { title: "Junk", url: "#", icon: ArchiveX, isActive: false },
     { title: "Trash", url: "#", icon: Trash2, isActive: false },
   ],
-  mails: [
-    {
-      name: "William Smith",
-      email: "williamsmith@example.com",
-      subject: "Meeting Tomorrow",
-      date: "09:34 AM",
-      teaser:
-        "Hi team, just a reminder about our meeting tomorrow at 10 AM.\nPlease come prepared with your project updates.",
-    },
-    {
-      name: "Alice Smith",
-      email: "alicesmith@example.com",
-      subject: "Re: Project Update",
-      date: "Yesterday",
-      teaser:
-        "Thanks for the update. The progress looks great so far.\nLet's schedule a call to discuss the next steps.",
-    },
-    {
-      name: "Bob Johnson",
-      email: "bobjohnson@example.com",
-      subject: "Weekend Plans",
-      date: "2 days ago",
-      teaser:
-        "Hey everyone! I'm thinking of organizing a team outing this weekend.\nWould you be interested in a hiking trip or a beach day?",
-    },
-  ],
 };
 
 export function InboxSidebar({ ...props }) {
   const [activeItem, setActiveItem] = React.useState(data.navMain[0]);
-  const [mails, setMails] = React.useState(data.mails);
   const { setOpen } = useSidebar();
+
+  const { conversations, getConversations } = useConversation();
+
+  React.useEffect(() => {
+    getConversations();
+  }, []);
 
   return (
     <div className="flex h-screen shrink-0 border-r bg-background" {...props}>
-      {/* Mini Sidebar (icons only) */}
       <aside className="flex w-[60px] flex-col border-r bg-background">
-        {/* Logo / Brand */}
         <div className="flex h-14 items-center justify-center border-b">
-          <div className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-lg">
-            <Command className="size-4" />
+          <div className="bg-primary text-primary-foreground flex h-8 w-8 items-center justify-center rounded-lg">
+            <Command className="h-4 w-4" />
           </div>
         </div>
 
-        {/* Nav icons */}
         <SidebarMenu className="flex flex-1 flex-col items-center py-4 space-y-2">
           {data.navMain.map((item) => (
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton
                 onClick={() => {
                   setActiveItem(item);
-                  const shuffled = [...data.mails].sort(
-                    () => Math.random() - 0.5
-                  );
-                  setMails(shuffled);
                   setOpen(true);
                 }}
                 isActive={activeItem?.title === item.title}
                 className="flex h-10 w-10 items-center justify-center rounded-md"
               >
-                <item.icon className="size-5" />
+                <item.icon className="h-5 w-5" />
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
 
-        {/* User Avatar at bottom */}
         <div className="flex h-14 items-center justify-center border-t">
           <NavUser user={data.user} />
         </div>
       </aside>
 
-      {/* Main Sidebar (search + mails) */}
       <aside className="flex w-[290px] flex-col">
         <SidebarHeader className="sticky top-0 z-10 border-b bg-background p-4">
           <div className="flex w-full items-center justify-between">
@@ -119,19 +90,32 @@ export function InboxSidebar({ ...props }) {
         <SidebarContent className="flex-1 overflow-y-auto">
           <SidebarGroup>
             <SidebarGroupContent>
-              {mails.map((mail) => (
+              {conversations?.map((conv) => (
                 <a
                   href="#"
-                  key={mail.email}
-                  className="hover:bg-accent hover:text-accent-foreground flex flex-col items-start gap-2 border-b p-4 text-sm leading-tight last:border-b-0"
+                  key={conv._id}
+                  className="hover:bg-accent hover:text-accent-foreground flex flex-col items-start gap-1 border-b p-4 text-sm leading-tight last:border-b-0"
                 >
                   <div className="flex w-full items-center gap-2">
-                    <span>{mail.name}</span>
-                    <span className="ml-auto text-xs">{mail.date}</span>
+                    <span className="text-medium">
+                      {conv.leadId?.name || "Unknown Lead"}
+                    </span>
+                    <span className="ml-auto text-xs">
+                      {new Date(conv.lastMessageAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
                   </div>
-                  <span className="font-medium">{mail.subject}</span>
+                  <span className="font-medium">
+                    {/* {conv.lastMessageId?.messageType === "text"
+                      ? conv.lastMessageId.text?.body
+                      : "Media/Other Message"} */}
+                  </span>
                   <span className="line-clamp-2 w-full text-xs whitespace-break-spaces">
-                    {mail.teaser}
+                    {conv.lastMessageId?.messageType === "text"
+                      ? conv.lastMessageId.text?.body
+                      : ""}
                   </span>
                 </a>
               ))}

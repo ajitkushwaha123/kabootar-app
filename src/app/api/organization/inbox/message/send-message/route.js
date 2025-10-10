@@ -69,18 +69,18 @@ export const POST = async (req) => {
 
     await dbConnect();
 
-    const newMessage = await Message.create({
-      leadId,
-      conversationId,
-      senderId: userId,
-      organizationId: orgId,
-      senderType,
-      status,
-      direction,
-      messageType,
-      ...messageContent,
-      metadata,
-    });
+    // const newMessage = await Message.create({
+    //   leadId,
+    //   conversationId,
+    //   senderId: userId,
+    //   organizationId: orgId,
+    //   senderType,
+    //   status,
+    //   direction,
+    //   messageType,
+    //   ...messageContent,
+    //   metadata,
+    // });
 
     const payload = {
       messaging_product: "whatsapp",
@@ -103,15 +103,15 @@ export const POST = async (req) => {
 
     console.log("WhatsApp API response:", waRes.data);
 
-    if (waRes.status === 200) {
-      newMessage.status = "sent";
-      await newMessage.save();
-    }
+    // if (waRes.status === 200) {
+    //   newMessage.status = "sent";
+    //   await newMessage.save();
+    // }
 
     return NextResponse.json(
       {
         message: "Message sent successfully",
-        data: newMessage,
+        // data: newMessage,
         success: true,
       },
       { status: 200 }

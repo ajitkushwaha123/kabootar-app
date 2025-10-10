@@ -46,7 +46,7 @@ export async function POST(req) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-hub-signature-256");
 
-  // 🔐 Enable in production
+  // ⚠️ Verify webhook signature for authenticity
   if (!verifySignature(rawBody, signature)) {
     return new NextResponse("Invalid signature", { status: 403 });
   }
@@ -54,7 +54,7 @@ export async function POST(req) {
   let body;
   try {
     body = JSON.parse(rawBody);
-  } catch (err) {
+  } catch {
     return NextResponse.json(
       { success: false, message: "Invalid JSON" },
       { status: 400 }
@@ -68,20 +68,29 @@ export async function POST(req) {
     if (changes) {
       console.log("📥 WhatsApp Webhook Event Received:", changes);
 
-      await addWhatsappEventToQueue({ payload: changes });
-
-      // Optional debug logs
-      if (changes.messages) {
-        changes.messages.forEach((msg) =>
-          console.log("📩 Incoming message:", msg)
-        );
+      if (Array.isArray(changes.statuses) && changes.statuses.length > 0) {
+        console.log("Received statuses:", changes.statuses);
+        await addWhatsappEventToQueue({
+          payload: { statuses: changes.statuses },
+          event: "whatsapp-status-update",
+        });
       }
 
-      if (changes.statuses) {
-        changes.statuses.forEach((status) =>
-          console.log("📡 Status update:", status)
-        );
+      if (Array.isArray(changes.messages) && changes.messages.length > 0) {
+        console.log("Received messages:", changes.messages);
+        await addWhatsappEventToQueue({
+          payload: { messages: changes.messages },
+          event: "whatsapp-message",
+        });
       }
+
+      changes.messages?.forEach((msg) =>
+        console.log("📩 Incoming message:", msg)
+      );
+
+      changes.statuses?.forEach((status) =>
+        console.log("📡 Status update:", status)
+      );
     }
   }
 

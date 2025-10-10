@@ -11,11 +11,14 @@ import {
 } from "@/components/ui/tooltip";
 import { Mic, Send, SmilePlus } from "lucide-react";
 import { useChat } from "@/store/hooks/useChat";
+import { useConversation } from "@/store/hooks/useConversation";
 
 const ChatInput = () => {
   const [message, setMessage] = React.useState("");
 
   const { sendMessage } = useChat();
+
+  const {  } = useConversation()
 
   const handleSend = () => {
     if (!message.trim()) return;

@@ -1,15 +1,19 @@
 import mongoose from "mongoose";
 
-const conversationSchema = new mongoose.Schema(
+const { Schema } = mongoose;
+
+const conversationSchema = new Schema(
   {
-    leadId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Lead",
+    contactId: {
+      type: Schema.Types.ObjectId,
+      ref: "Contact",
       required: true,
     },
     organizationId: {
       type: String, // Clerk orgId
       required: true,
+      index: true,
+      trim: true,
     },
     participants: {
       type: [String], // Clerk userIds of assigned agents
@@ -18,20 +22,23 @@ const conversationSchema = new mongoose.Schema(
     unreadCount: {
       type: Number,
       default: 0,
+      min: 0,
     },
     lastMessageId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "Message",
       default: null,
     },
     lastMessageAt: {
       type: Date,
       default: Date.now,
+      index: true,
     },
     status: {
       type: String,
       enum: ["open", "closed", "archived"],
       default: "open",
+      index: true,
     },
     tags: {
       type: [String],
@@ -40,6 +47,7 @@ const conversationSchema = new mongoose.Schema(
     isDeleted: {
       type: Boolean,
       default: false,
+      index: true,
     },
     deletedAt: {
       type: Date,
@@ -49,9 +57,8 @@ const conversationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// 🧩 Compound Indexes for efficient queries
 conversationSchema.index({ organizationId: 1, lastMessageAt: -1 });
-conversationSchema.index({ leadId: 1 });
-conversationSchema.index({ status: 1 });
 conversationSchema.index({
   organizationId: 1,
   unreadCount: -1,
@@ -63,5 +70,8 @@ conversationSchema.index({
   lastMessageAt: -1,
 });
 
-const Conversation = mongoose.model("Conversation", conversationSchema);
+const Conversation =
+  mongoose.models.Conversation ||
+  mongoose.model("Conversation", conversationSchema);
+
 export default Conversation;

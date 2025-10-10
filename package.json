@@ -36,6 +36,7 @@
     "@reduxjs/toolkit": "^2.9.0",
     "@tabler/icons-react": "^3.35.0",
     "@tanstack/react-table": "^8.21.3",
+    "aws-sdk": "^2.1692.0",
     "axios": "^1.12.2",
     "bullmq": "^5.60.0",
     "class-variance-authority": "^0.7.1",

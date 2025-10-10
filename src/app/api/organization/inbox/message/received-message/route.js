@@ -3,15 +3,16 @@ import Contact from "@/models/Contact";
 import Conversation from "@/models/Conversation";
 import Lead from "@/models/Lead";
 import Organization from "@/models/Organization";
-import Message from "@/models/Message"; 
+import Message from "@/models/Message";
 import { NextResponse } from "next/server";
+import { handleMessageByType } from "@/helper/webhook-payload/message-handler";
 
 export const POST = async (req) => {
   try {
     await dbConnect();
 
     const data = await req.json();
-    const { contacts, metadata, messages } = data;
+    const { contacts, metadata, messages, statuses } = data;
 
     const org = await Organization.findOne({
       phone_number_id: metadata?.phone_number_id,
@@ -24,93 +25,78 @@ export const POST = async (req) => {
       );
     }
 
-    const { wa_id, profile } = contacts?.[0] || {};
-    const { referral, text, type, id: msgId, timestamp } = messages?.[0] || {};
+    if(statuses && statuses.length > 0) {
+      console.log("Received status update:", statuses);
+    }
 
-    if (!wa_id) {
+    const { wa_id, profile } = contacts?.[0] || {};
+    const messagePayload = messages?.[0] || {};
+
+    if (!wa_id || !messagePayload.id) {
       return NextResponse.json(
-        { message: "wa_id is required", success: false },
+        { message: "Invalid message payload", success: false },
         { status: 400 }
       );
     }
 
-    // ✅ Handle Contact
-    let contact = await Contact.findOne({ phone: wa_id });
-    if (!contact) {
-      contact = new Contact({
-        name: profile?.name || "",
-        phone: wa_id,
+    let senderContact = await Contact.findOne({
+      primaryPhone: wa_id,
+      organizationId: org.org_id,
+    });
+
+    if (!senderContact) {
+      senderContact = await Contact.create({
+        primaryName: profile?.name || "",
+        primaryPhone: wa_id,
         organizationId: org.org_id,
-        source: "whatsapp_ad",
+        source: messagePayload.referral
+          ? "whatsapp_ad"
+          : "direct_message_received",
+        name: {
+          formatted_name: profile?.name || "",
+        },
+        phone: [{ phone: wa_id, wa_id: wa_id, type: "whatsapp" }],
       });
-      await contact.save();
-      console.log("New contact created:", contact);
+      console.log("🆕 New sender contact created:", senderContact.primaryPhone);
     }
 
-    // ✅ Handle Lead
-    let lead = await Lead.findOne({ phone: wa_id });
-    if (!lead) {
-      lead = new Lead({
-        name: profile?.name || "",
-        phone: wa_id,
-        organizationId: org.org_id,
-        source: "whatsapp_ad",
-        status: "new",
-        adId: referral?.source_id || null,
-      });
-      await lead.save();
-      console.log("New lead created:", lead);
-    }
+    console.log("senderContact", senderContact);
 
-    // ✅ Handle Conversation
-    let conversation = await Conversation.findOne({ leadId: lead._id });
+    let conversation = await Conversation.findOne({
+      contactId: senderContact._id,
+      organizationId: org.org_id,
+    });
 
     if (!conversation) {
-      conversation = new Conversation({
-        leadId: lead._id,
+      conversation = await Conversation.create({
         organizationId: org.org_id,
+        contactId: senderContact._id,
         participants: [wa_id],
         status: "open",
         unreadCount: 0,
         lastMessageAt: new Date(),
         lastMessageId: null,
       });
-      await conversation.save();
     }
 
-    // ✅ Create Message
-    const message = new Message({
-      leadId: lead._id,
-      conversationId: conversation._id,
-      senderId: wa_id,
-      senderType: "lead", // keep consistent
-      organizationId: org.org_id,
-      direction: "incoming",
-      status: "received",
-      messageType: type || "text",
-      text: type === "text" ? { body: text?.body || "" } : {},
-      metadata: {
-        msgId,
-        timestamp,
-        referral,
-      },
+    const message = await handleMessageByType({
+      org,
+      contact: senderContact,
+      conversation,
+      messagePayload,
     });
 
-    await message.save();
-
+    // ✅ Update conversation metadata
     conversation.lastMessageAt = new Date();
     conversation.lastMessageId = message._id;
     await conversation.save();
 
     return NextResponse.json(
-      {
-        message: "Contact, Lead, Conversation & Message processed successfully",
-        success: true,
-      },
+      { message: "Message processed successfully", success: true },
       { status: 200 }
     );
   } catch (err) {
-    console.error("Error processing contact:", err);
+    console.error("❌ Error processing webhook:", err);
     return NextResponse.json(
       { message: err.message || "Internal Server Error", success: false },
       { status: 500 }
