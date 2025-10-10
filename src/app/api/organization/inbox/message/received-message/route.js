@@ -12,7 +12,7 @@ export const POST = async (req) => {
     await dbConnect();
 
     const data = await req.json();
-    const { contacts, metadata, messages, statuses } = data;
+    const { contacts, metadata, messages } = data;
 
     const org = await Organization.findOne({
       phone_number_id: metadata?.phone_number_id,
@@ -23,10 +23,6 @@ export const POST = async (req) => {
         { message: "Organization not found", success: false },
         { status: 404 }
       );
-    }
-
-    if(statuses && statuses.length > 0) {
-      console.log("Received status update:", statuses);
     }
 
     const { wa_id, profile } = contacts?.[0] || {};

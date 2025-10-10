@@ -24,33 +24,55 @@ const connection = new Redis(process.env.REDIS_URL, {
   },
 });
 
+// ✅ Event routing handler
+async function handleEvent(job) {
+  const { event, payload } = job.data;
+
+  switch (event) {
+    case "whatsapp-message":
+      console.log(`💬 Handling WhatsApp message event for JOB:${job.id}`);
+      return await axios.post(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/organization/inbox/message/received-message`,
+        payload,
+        { headers: { "Content-Type": "application/json" }, timeout: 15000 }
+      );
+
+    case "whatsapp-status-update":
+      console.log(`📡 Handling WhatsApp status update for JOB:${job.id}`);
+      return await axios.post(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/organization/inbox/message/status-update`,
+        payload,
+        { headers: { "Content-Type": "application/json" }, timeout: 15000 }
+      );
+
+    default:
+      console.warn(`⚠️ [JOB:${job.id}] Unknown event type: ${event}`);
+      return { success: false, message: "Unknown event type", even };
+  }
+}
+
 // ✅ Worker setup
 const worker = new Worker(
   "whatsappEventQueue",
   async (job) => {
-    console.log(`🚀 [JOB:${job.id}] Processing message event`);
+    console.log(`🚀 [JOB:${job.id}] Received event: ${job.data.event}`);
 
     try {
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/api/organization/inbox/message/received-message`,
-        job.data,
-        { headers: { "Content-Type": "application/json" }, timeout: 15000 }
-      );
+      const response = await handleEvent(job);
 
       // ✅ Validate response
-      if (response.status < 200 || response.status >= 300) {
-        throw new Error(`Unexpected response ${response.status}`);
+      if (!response || response.status < 200 || response.status >= 300) {
+        throw new Error(`Unexpected response ${response?.status}`);
       }
 
-      console.log(`✅ [JOB:${job.id}] Processed successfully`, response.data);
+      console.log(`✅ [JOB:${job.id}] Processed successfully`);
       return response.data;
     } catch (err) {
-      // Enhanced error logging
       const errMsg = err.response?.data || err.message || "Unknown error";
       console.error(`❌ [JOB:${job.id}] Failed → ${errMsg}`);
 
-      // Retry logic hint (optional)
-      if (err.code === "ECONNRESET" || err.code === "ETIMEDOUT") {
+      // Optional retry logic for network issues
+      if (["ECONNRESET", "ETIMEDOUT"].includes(err.code)) {
         console.warn("⚠️ Network error — requeuing job for retry...");
         throw new Error("Temporary network failure — retrying...");
       }
@@ -69,8 +91,10 @@ const worker = new Worker(
   }
 );
 
-// ✅ Event listeners for better observability
-worker.on("active", (job) => console.log(`🟢 [JOB:${job.id}] Started`));
+// ✅ Event listeners for observability
+worker.on("active", (job) =>
+  console.log(`🟢 [JOB:${job.id}] Started (${job.data.event})`)
+);
 worker.on("completed", (job, result) =>
   console.log(`✅ [JOB:${job.id}] Completed →`, result?.message || "done")
 );
@@ -93,7 +117,7 @@ process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
 
 console.log(
-  "💬 WhatsApp Worker ready and listening on queue → whatsappEventQueue"
+  "💬 WhatsApp Worker ready → listening on queue: whatsappEventQueue"
 );
 
 export default worker;
