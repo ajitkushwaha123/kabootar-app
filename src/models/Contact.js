@@ -42,13 +42,18 @@ const contactSchema = new mongoose.Schema(
     },
 
     wa_id: { type: String, index: true },
+
     leadId: { type: mongoose.Schema.Types.ObjectId, ref: "Lead" },
 
-    primaryPhone: { type: String, index: true },
+    primaryPhone: { type: String, trim: true, required: true, unique: true },
     primaryName: { type: String, trim: true },
+
+    email: { type: String, trim: true, unique: true, sparse: true }, 
   },
   { timestamps: true }
 );
+
+contactSchema.index({ organizationId: 1, primaryPhone: 1 }, { unique: true });
 
 const Contact =
   mongoose.models.Contact || mongoose.model("Contact", contactSchema);

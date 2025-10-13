@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Message from "@/models/Message";
+import Conversation from "@/models/Conversation";
 import axios from "axios";
 
 export const POST = async (req) => {
@@ -14,7 +15,6 @@ export const POST = async (req) => {
         { status: 404 }
       );
     }
-
     if (!userId) {
       return NextResponse.json(
         { message: "Unauthorized", success: false },
@@ -23,9 +23,7 @@ export const POST = async (req) => {
     }
 
     const messageData = await req.json();
-
     const {
-      leadId,
       conversationId,
       senderType = "agent",
       status = "pending",
@@ -44,6 +42,8 @@ export const POST = async (req) => {
         { status: 400 }
       );
     }
+
+    console.log("messageType", messageData);
 
     const messageContent = {};
     switch (messageType) {
@@ -69,49 +69,63 @@ export const POST = async (req) => {
 
     await dbConnect();
 
-    // const newMessage = await Message.create({
-    //   leadId,
-    //   conversationId,
-    //   senderId: userId,
-    //   organizationId: orgId,
-    //   senderType,
-    //   status,
-    //   direction,
-    //   messageType,
-    //   ...messageContent,
-    //   metadata,
-    // });
+    // Save message locally first
+    const newMessage = await Message.create({
+      conversationId,
+      senderId: userId,
+      organizationId: orgId,
+      senderType,
+      status,
+      direction,
+      messageType,
+      ...messageContent,
+      metadata,
+      timestamp: new Date(),
+    });
 
     const payload = {
       messaging_product: "whatsapp",
       recipient_type: "individual",
-      to: 918178739633,
+      to: 918178739633, // replace with dynamic number if needed
       type: messageType,
       [messageType]: messageContent[messageType],
     };
 
-    const waRes = await axios.post(
-      `${process.env.META_BASE_API_URL}/${process.env.META_PHONE_NUMBER_ID}/messages`,
-      payload,
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
-          "Content-Type": "application/json",
-        },
+    try {
+      const waRes = await axios.post(
+        `${process.env.META_BASE_API_URL}/${process.env.META_PHONE_NUMBER_ID}/messages`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      console.log("WhatsApp API response:", waRes.data);
+
+      if (waRes.data?.messages?.length > 0) {
+        newMessage.status = "sent";
+        newMessage.whatsappMessageId = waRes.data.messages[0].id || null;
+        await newMessage.save();
+
+        await Conversation.findByIdAndUpdate(conversationId, {
+          lastMessageId: newMessage._id,
+          lastMessageAt: newMessage.timestamp,
+        });
       }
-    );
-
-    console.log("WhatsApp API response:", waRes.data);
-
-    // if (waRes.status === 200) {
-    //   newMessage.status = "sent";
-    //   await newMessage.save();
-    // }
+    } catch (waErr) {
+      console.error("WhatsApp API error:", waErr.message);
+      // Optionally mark message as 'failed' or leave as 'pending'
+      newMessage.status = "failed";
+      await newMessage.save();
+    }
 
     return NextResponse.json(
       {
-        message: "Message sent successfully",
-        // data: newMessage,
+        message: "Message processed successfully",
+        data: newMessage,
         success: true,
       },
       { status: 200 }

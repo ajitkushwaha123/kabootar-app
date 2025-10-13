@@ -1,22 +1,25 @@
-import mongoose from "mongoose";
-
-const { Schema } = mongoose;
+import mongoose, { Schema } from "mongoose";
 
 const conversationSchema = new Schema(
   {
+    leadId: {
+      type: Schema.Types.ObjectId,
+      ref: "Lead",
+      required: false,
+    },
     contactId: {
       type: Schema.Types.ObjectId,
       ref: "Contact",
       required: true,
     },
     organizationId: {
-      type: String, // Clerk orgId
+      type: String,
       required: true,
       index: true,
       trim: true,
     },
     participants: {
-      type: [String], // Clerk userIds of assigned agents
+      type: [String],
       default: [],
     },
     unreadCount: {
@@ -44,6 +47,11 @@ const conversationSchema = new Schema(
       type: [String],
       default: [],
     },
+    isLead: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     isDeleted: {
       type: Boolean,
       default: false,
@@ -69,6 +77,16 @@ conversationSchema.index({
   isDeleted: 1,
   lastMessageAt: -1,
 });
+
+conversationSchema.index(
+  { organizationId: 1, contactId: 1 },
+  { unique: true, partialFilterExpression: { isDeleted: false } } 
+);
+
+conversationSchema.index(
+  { organizationId: 1, contactId: 1, status: 1 },
+  { unique: true, partialFilterExpression: { status: "open" } }
+);
 
 const Conversation =
   mongoose.models.Conversation ||

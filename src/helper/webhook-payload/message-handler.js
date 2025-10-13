@@ -35,7 +35,6 @@ export const handleMessageByType = async ({
   }
 
   const base = {
-    contactId: contact._id,
     conversationId: conversation._id,
     senderId: contact.primaryPhone,
     senderType: "user",
@@ -46,7 +45,7 @@ export const handleMessageByType = async ({
     timestamp: new Date(parseInt(timestamp) * 1000),
     whatsappMessageId: msgId,
     metadata: {
-      ...(referral ? { referral } : {}), 
+      ...(referral ? { referral } : {}),
     },
     context: repliedMessage?._id || null,
   };
@@ -88,7 +87,7 @@ export const handleMessageByType = async ({
       break;
 
     case "document":
-      messageData.file = {
+      messageData.document = {
         id: document?.id,
         filename: document?.filename,
         mime_type: document?.mime_type,

@@ -32,7 +32,7 @@ export const MessageLayout = ({
         return <Check className="w-3.5 h-3.5 text-gray-400" />;
       case "delivered":
         return <CheckCheck className="w-3.5 h-3.5 text-gray-400" />;
-      case "seen":
+      case "read":
         return <CheckCheck className="w-3.5 h-3.5 text-blue-500" />;
       case "failed":
         return <XCircle className="w-3.5 h-3.5 text-red-500" />;

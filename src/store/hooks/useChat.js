@@ -3,57 +3,65 @@ import {
   addMessage,
   clearMessages,
   updateMessageStatus,
+  sendMessage as sendMessageThunk,
+  fetchMessages,
 } from "../slices/chatSlice";
 import { useOrganization, useUser } from "@clerk/nextjs";
-import { sendMessage as sendMessageThunk } from "../slices/chatSlice";
+import { useConversation } from "./useConversation";
 
 export const useChat = () => {
-  const messages = useSelector((state) => state.chat.messages);
   const dispatch = useDispatch();
+  const { messages, loading, error } = useSelector((state) => state.chat);
 
+  const { activeConversationId } = useConversation();
   const { organization } = useOrganization();
   const { user } = useUser();
 
+  // Add local (pending) message before sending
   const addLocalMessage = (messageData) => {
-    if (!user) return console.warn("User not found");
+    if (!user) {
+      console.warn("User not found while adding message");
+      return null;
+    }
+
+    if (!activeConversationId) {
+      console.warn("No active conversation selected");
+      return null;
+    }
 
     const timestamp = new Date().toISOString();
 
     const newMessage = {
       _id: crypto.randomUUID(),
-      leadId: messageData.leadId || "lead123",
-      conversationId: messageData.conversationId || "conv123",
-      organizationId: organization?.id || "org123",
-      senderId: user?.id || "user123",
+      conversationId: activeConversationId,
+      organizationId: organization?.id || "",
+      senderId: user.id,
       senderType: "agent",
       direction: "outgoing",
       status: "pending",
       createdAt: timestamp,
       updatedAt: timestamp,
       isDeleted: false,
-      ...messageData,
       metadata: messageData.metadata || {},
+      ...messageData,
     };
 
     dispatch(addMessage(newMessage));
-
     return newMessage;
   };
 
+  // Send message with optimistic update
   const sendMessage = async (messageData) => {
     const localMessage = addLocalMessage(messageData);
+    if (!localMessage) return;
 
     try {
-      const response = await dispatch(
-        sendMessageThunk({
-          ...localMessage,
-        })
-      ).unwrap();
+      const response = await dispatch(sendMessageThunk(localMessage)).unwrap();
 
       dispatch(
         updateMessageStatus({
           _id: localMessage._id,
-          status: response?.status || "sent",
+          status: response?.data?.status || "sent",
         })
       );
     } catch (err) {
@@ -67,10 +75,27 @@ export const useChat = () => {
     }
   };
 
+  const getMessages = async (conversationId) => {
+    const id = conversationId;
+    if (!id) {
+      console.warn("getMessages called without conversationId");
+      return;
+    }
+
+    try {
+      await dispatch(fetchMessages({ chatId: id })).unwrap();
+    } catch (err) {
+      console.error("Failed to fetch messages:", err);
+    }
+  };
+
   return {
     messages,
+    loading,
+    error,
     addLocalMessage,
     sendMessage,
+    getMessages,
     updateMessageStatus: (payload) => dispatch(updateMessageStatus(payload)),
     clearMessages: () => dispatch(clearMessages()),
   };

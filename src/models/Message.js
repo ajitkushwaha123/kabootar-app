@@ -2,10 +2,6 @@ import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema(
   {
-    contactId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Contact",
-    },
     conversationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Conversation",
@@ -39,30 +35,27 @@ const messageSchema = new mongoose.Schema(
         "video",
         "location",
         "contacts",
+        "document",
         "unsupported",
       ],
       default: "text",
     },
 
-    // 📩 Text
     text: {
       preview_url: { type: Boolean, default: false },
       body: { type: String },
     },
 
-    // 💬 Reaction
     reaction: {
       message_id: { type: String },
       emoji: { type: String },
     },
 
-    // 🖼️ Image
     image: {
       link: { type: String },
       caption: { type: String },
     },
 
-    // 🎨 Sticker
     sticker: {
       id: { type: String },
       link: { type: String },
@@ -70,7 +63,6 @@ const messageSchema = new mongoose.Schema(
       sha256: { type: String },
     },
 
-    // 🎥 Video
     video: {
       id: { type: String },
       link: { type: String },
@@ -79,7 +71,6 @@ const messageSchema = new mongoose.Schema(
       sha256: { type: String },
     },
 
-    // 🧭 Location
     location: {
       latitude: { type: Number },
       longitude: { type: Number },
@@ -94,7 +85,14 @@ const messageSchema = new mongoose.Schema(
       },
     ],
 
-    // ⚙️ Unsupported message handler
+    document: {
+      id: { type: String },
+      link: { type: String },
+      filename: { type: String },
+      mime_type: { type: String },
+      sha256: { type: String },
+    },
+
     unsupported: {
       code: { type: Number },
       title: { type: String },

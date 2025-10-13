@@ -36,15 +36,17 @@ async function handleEvent(job) {
       return await axios.post(
         `${process.env.NEXT_PUBLIC_BASE_URL}/api/organization/inbox/message/received-message`,
         payload,
-        { headers: { "Content-Type": "application/json" }, timeout: 15000 }
+        {
+           headers: { "Content-Type": "application/json" } 
+      }
       );
 
     case "whatsapp-status-update":
       console.log(`📡 Handling WhatsApp status update for JOB:${job.id}`);
       return await axios.post(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/api/organization/inbox/message/status-update`,
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/organization/inbox/message/update-status`,
         payload,
-        { headers: { "Content-Type": "application/json" }, timeout: 15000 }
+        { headers: { "Content-Type": "application/json" } }
       );
 
     default:

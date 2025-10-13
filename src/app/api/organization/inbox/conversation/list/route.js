@@ -1,6 +1,6 @@
 import dbConnect from "@/lib/dbConnect";
 import Conversation from "@/models/Conversation";
-import Lead from "@/models/Lead";
+import Contact from "@/models/Contact";
 import Message from "@/models/Message";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
@@ -9,7 +9,7 @@ export const GET = async () => {
   try {
     await dbConnect();
 
-    const { orgId } = await auth(); // no need to await; it’s a sync helper in server components
+    const { orgId } = await auth();
     if (!orgId) {
       return NextResponse.json(
         { message: "Organization ID missing", success: false },
@@ -17,12 +17,11 @@ export const GET = async () => {
       );
     }
 
-    // ✅ Efficient query with projections and sorting
     const conversations = await Conversation.find({
       organizationId: orgId,
       isDeleted: false,
     })
-      .populate("leadId", "name phone status")
+      .populate("contactId", "primaryName , primaryPhone")
       .populate("lastMessageId")
       .sort({ lastMessageAt: -1 })
       .lean();
