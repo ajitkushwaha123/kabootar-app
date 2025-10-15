@@ -1,38 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { formatPhone, UserAvatar } from "@/helper/transform";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, UserPlus2, MessageSquare, CheckCircle2 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import AssignAgent from "./AssignAgent";
+import { LeadDetails } from "./MarkAsLeadButton";
+import { AssignAgent } from "./AssignAgent";
 
-const AGENTS = [
-  { id: "1", name: "Ravi Sharma" },
-  { id: "2", name: "Neha Patel" },
-  { id: "3", name: "Aman Gupta" },
-  { id: "4", name: "Priyanka Verma" },
-];
-
-export default function ContactDetails({ name, phone }) {
-  const [assignOpen, setAssignOpen] = useState(false);
-  const [selectedAgent, setSelectedAgent] = useState(null);
-
-
+export default function ContactDetails({ name, phone, isLead, leadId }) {
   return (
     <div className="space-y-6 px-4 overflow-y-auto h-full pb-6">
-      {/* Contact Header */}
       <div className="flex flex-col justify-center items-center py-5 text-center">
         <UserAvatar name={name} size="xl" />
         <h2
@@ -51,8 +27,9 @@ export default function ContactDetails({ name, phone }) {
 
       <Separator />
 
-      {/* Assigned Agents */}
-      <AssignAgent />
+      <AssignAgent leadId={leadId} />
+
+      <LeadDetails isLead={isLead} leadId={leadId} />
 
       {/* Team Notes */}
       {/* <Card className="border-0 shadow-sm bg-card">

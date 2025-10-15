@@ -2,18 +2,18 @@ import mongoose from "mongoose";
 
 const phoneSchema = new mongoose.Schema(
   {
-    phone: { type: String, required: true },
-    wa_id: { type: String },
-    type: { type: String },
+    phone: { type: String, required: true, trim: true },
+    wa_id: { type: String, trim: true },
+    type: { type: String, trim: true },
   },
   { _id: false }
 );
 
 const nameSchema = new mongoose.Schema(
   {
-    formatted_name: { type: String },
-    first_name: { type: String },
-    last_name: { type: String },
+    formatted_name: { type: String, trim: true },
+    first_name: { type: String, trim: true },
+    last_name: { type: String, trim: true },
   },
   { _id: false }
 );
@@ -21,7 +21,7 @@ const nameSchema = new mongoose.Schema(
 const contactSchema = new mongoose.Schema(
   {
     organizationId: {
-      type: String,
+      type: String, // Clerk org ID
       required: true,
       index: true,
     },
@@ -41,18 +41,33 @@ const contactSchema = new mongoose.Schema(
       default: "whatsapp_contact_shared",
     },
 
-    wa_id: { type: String, index: true },
+    wa_id: { type: String, index: true, trim: true },
 
-    leadId: { type: mongoose.Schema.Types.ObjectId, ref: "Lead" },
+    leadId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Lead",
+    },
 
-    primaryPhone: { type: String, trim: true, required: true, unique: true },
+    primaryPhone: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
     primaryName: { type: String, trim: true },
 
-    email: { type: String, trim: true, unique: true, sparse: true }, 
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      unique: false,
+      sparse: true,
+    },
   },
-  { timestamps: true }
+  { timestamps: true, versionKey: false }
 );
 
+// ✅ Ensure unique primaryPhone per organization
 contactSchema.index({ organizationId: 1, primaryPhone: 1 }, { unique: true });
 
 const Contact =

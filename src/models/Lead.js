@@ -6,49 +6,79 @@ const leadSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Contact",
       default: null,
+      index: true,
     },
+
     organizationId: {
       type: String,
       required: true,
       index: true,
     },
-    adId: {
-      type: String,
+
+    conversationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Conversation",
       default: null,
     },
-    status: {
+
+    title: {
       type: String,
-      enum: ["new", "contacted", "in_progress", "converted", "closed"],
+      trim: true,
+    },
+
+    description: {
+      type: String,
+      trim: true,
+    },
+
+    source: {
+      type: String,
+      enum: ["whatsapp", "manual", "imported", "form", "referral"],
+      default: "whatsapp",
+      index: true,
+    },
+
+    stage: {
+      type: String,
+      enum: ["new", "in_progress", "won", "lost"],
       default: "new",
       index: true,
     },
+
+    value: {
+      type: Number,
+      default: 0,
+    },
+
+    status: {
+      type: String,
+      enum: ["active", "archived"],
+      default: "active",
+      index: true,
+    },
+
     assignedTo: [
       {
         type: String,
+        index: true,
       },
     ],
-    metadata: {
-      type: Object,
-      default: {},
-    },
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
-    deletedAt: {
-      type: Date,
+
+    createdBy: {
+      type: String,
       default: null,
     },
   },
-  { timestamps: true }
+  { timestamps: true, versionKey: false }
 );
 
-leadSchema.index({ organizationId: 1 });
+leadSchema.index({ organizationId: 1, stage: 1 });
+leadSchema.index({ organizationId: 1, status: 1 });
+
 leadSchema.index(
-  { contactId: 1, organizationId: 1 },
-  { unique: true, sparse: true }
+  { organizationId: 1, contactId: 1 },
+  { unique: true, partialFilterExpression: { contactId: { $exists: true } } }
 );
-leadSchema.index({ status: 1 });
 
 const Lead = mongoose.models.Lead || mongoose.model("Lead", leadSchema);
 export default Lead;

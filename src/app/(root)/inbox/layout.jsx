@@ -5,16 +5,7 @@ import ContactDetails from "@/components/global/chat/contact-details";
 import ChatInput from "@/components/global/chat/input/input-field";
 import { InboxSidebar } from "@/components/inbox-sidebar";
 import { ChatHeaderSkeleton } from "@/components/skeleton/ChatHeaderSkeleton";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+
 import {
   Sheet,
   SheetContent,
@@ -25,7 +16,6 @@ import {
 import {
   SidebarInset,
   SidebarProvider,
-  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { useConversation } from "@/store/hooks/useConversation";
 export default function Page({ children }) {
@@ -60,6 +50,8 @@ export default function Page({ children }) {
             <ContactDetails
               name={chatDetails?.contactId?.primaryName}
               phone={chatDetails?.contactId?.primaryPhone}
+              isLead={chatDetails?.isLead}
+              leadId={chatDetails?.leadId}
             />
           </SheetContent>
         </Sheet>

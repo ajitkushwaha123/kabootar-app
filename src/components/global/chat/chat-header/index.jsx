@@ -2,6 +2,7 @@
 
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatPhone, UserAvatar } from "@/helper/transform";
+import { MarkAsLeadButton } from "../contact-details/MarkAsLeadButton";
 
 export default function ChatHeader({ name, phone }) {
   return (

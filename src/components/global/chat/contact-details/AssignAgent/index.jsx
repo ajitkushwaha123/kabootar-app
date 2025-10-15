@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -11,95 +10,172 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useOrganization } from "@clerk/nextjs";
-import { Plus, UserPlus2, CheckCircle2 } from "lucide-react";
-import { cn } from "@/lib/utils"; // optional utility for conditional classes
+import { UserPlus2, Trash2, Loader2 } from "lucide-react";
+import axios from "axios";
+import { toast } from "sonner";
 
-const AssignAgent = ({ initialAssignedAgents = [] }) => {
-  const [assignOpen, setAssignOpen] = useState(false);
-  const [selectedAgent, setSelectedAgent] = useState(null);
-  const [assignedAgents, setAssignedAgents] = useState(initialAssignedAgents);
+const api = {
+  fetchAssignedAgents: async (leadId) => {
+    const { data } = await axios.get(
+      `/api/organization/inbox/leads/${leadId}/assigned-agents`
+    );
+    return data.assignedAgents || [];
+  },
+  assignAgent: async (leadId, agentId) => {
+    const { data } = await axios.post(
+      `/api/organization/inbox/leads/${leadId}/assign`,
+      { agentId }
+    );
+    return data.assigned || [];
+  },
+  unassignAgent: async (leadId, agentId) => {
+    const { data } = await axios.delete(
+      `/api/organization/inbox/leads/${leadId}/assign`,
+      { data: { agentId } }
+    );
+    return data.assigned || [];
+  },
+};
 
-  const { memberships } = useOrganization({
-    memberships: {
-      infinite: true,
-      keepPreviousData: true,
-    },
-  });
+export const AgentSkeleton = ({ count = 4 }) => (
+  <div className="flex flex-wrap gap-2">
+    {Array.from({ length: count }).map((_, i) => (
+      <div key={i} className="h-8 w-8 rounded-full bg-gray-300 animate-pulse" />
+    ))}
+  </div>
+);
+
+const AgentActionButton = ({ assigned, loading, onClick }) => {
+  if (loading) return <Loader2 className="w-4 h-4 animate-spin" />;
+  return assigned ? (
+    <Trash2 className="w-4 h-4" onClick={onClick} title="Unassign Agent" />
+  ) : (
+    <UserPlus2 className="w-4 h-4" onClick={onClick} title="Assign Agent" />
+  );
+};
+
+export const AssignAgent = ({ leadId = "" }) => {
+  const [assignedAgents, setAssignedAgents] = useState([]);
+  const [loadingAgent, setLoadingAgent] = useState(null);
+  const [fetching, setFetching] = useState(true);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const { memberships } = useOrganization({ memberships: { infinite: true } });
+
+  const refreshAssignedAgents = async () => {
+    if (!leadId) return;
+    setFetching(true);
+    try {
+      const agents = await api.fetchAssignedAgents(leadId);
+      setAssignedAgents(agents);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to fetch assigned agents");
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshAssignedAgents();
+  }, [leadId]);
 
   if (!memberships) return null;
 
-  const handleAssign = (agent) => {
-    if (!assignedAgents.find((a) => a.id === agent.id)) {
-      setAssignedAgents([...assignedAgents, agent]);
+  // ------------------ Utils ------------------
+  const isAssigned = (agentId) =>
+    assignedAgents.some((a) => a.agentId === agentId);
+
+  const handleToggleAgent = async (agentId) => {
+    setLoadingAgent(agentId);
+    try {
+      const updated = isAssigned(agentId)
+        ? await api.unassignAgent(leadId, agentId)
+        : await api.assignAgent(leadId, agentId);
+      toast.success(
+        isAssigned(agentId) ? "Agent unassigned" : "Agent assigned"
+      );
+      setAssignedAgents(updated);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update agent assignment");
+    } finally {
+      setLoadingAgent(null);
     }
-    setSelectedAgent(agent);
-    setAssignOpen(false);
   };
 
   return (
     <div>
       {/* Assigned Agents Card */}
       <Card className="border-0 shadow-sm bg-card">
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-2 flex justify-between items-center">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <UserPlus2 className="h-4 w-4 text-primary" /> Assigned Agents
           </CardTitle>
+          <Button size="sm" onClick={() => setSheetOpen(true)}>
+            View / Assign
+          </Button>
         </CardHeader>
 
         <CardContent className="pt-1">
-          {assignedAgents.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-2">
-              {assignedAgents.map((agent) => (
-                <Badge
-                  key={agent.id}
-                  variant="secondary"
-                  className="text-xs px-2 py-0.5 max-w-[120px] truncate"
-                  title={agent.name}
-                >
-                  {agent.name}
-                </Badge>
-              ))}
-              <Button
-                size="sm"
-                variant="outline"
-                className="ml-auto text-xs"
-                onClick={() => setAssignOpen(true)}
-              >
-                Change
-              </Button>
-            </div>
+          {fetching ? (
+            <AgentSkeleton />
+          ) : assignedAgents.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No agents assigned</p>
           ) : (
-            <div className="flex justify-between items-center">
-              <p className="text-sm text-muted-foreground">No agent assigned</p>
-              <Button
-                size="sm"
-                onClick={() => setAssignOpen(true)}
-                className="flex items-center gap-1 text-xs"
-              >
-                <Plus className="h-4 w-4" /> Assign
-              </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              {assignedAgents.map((agent) => {
+                const membership = memberships.data?.find(
+                  (m) =>
+                    m.publicUserData?.userId === agent.agentId ||
+                    m.id === agent.agentId
+                );
+                const name = membership
+                  ? `${membership.publicUserData?.firstName || ""} ${
+                      membership.publicUserData?.lastName || ""
+                    }`.trim()
+                  : "Unknown";
+                const image =
+                  membership?.publicUserData?.imageUrl ||
+                  "/placeholder-avatar.png";
+
+                return (
+                  <div
+                    key={agent.agentId}
+                    className="flex flex-col items-center gap-1 cursor-pointer"
+                  >
+                    <img
+                      src={image}
+                      alt={name}
+                      title={name}
+                      className="h-8 w-8 rounded-full border object-cover"
+                      onClick={() => handleToggleAgent(agent.agentId)}
+                    />
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Assign Agent Sheet */}
-      <Sheet open={assignOpen} onOpenChange={setAssignOpen}>
-        <SheetContent side="right" className="w-[320px] px-4 sm:w-[400px]">
+      {/* Sheet: All Org Agents */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent side="right" className="w-[320px] sm:w-[400px] px-4">
           <SheetHeader>
-            <SheetTitle>Assign Agent</SheetTitle>
+            <SheetTitle>All Agents</SheetTitle>
           </SheetHeader>
 
           <div className="mt-6 space-y-3">
             {memberships.data?.map((membership) => {
-              const agent = {
-                id: membership.id,
-                name: `${membership.publicUserData?.firstName || ""} ${
-                  membership.publicUserData?.lastName || ""
-                }`.trim(),
-                image: membership.publicUserData?.imageUrl || null, // Profile image
-              };
-              const initials = agent.name
+              const agentId =
+                membership.publicUserData?.userId || membership.id;
+              const name = `${membership.publicUserData?.firstName || ""} ${
+                membership.publicUserData?.lastName || ""
+              }`.trim();
+              const image = membership.publicUserData?.imageUrl || null;
+              const assigned = isAssigned(agentId);
+              const initials = name
                 .split(" ")
                 .map((n) => n[0])
                 .join("")
@@ -107,19 +183,14 @@ const AssignAgent = ({ initialAssignedAgents = [] }) => {
 
               return (
                 <div
-                  key={membership.id}
-                  className={cn(
-                    "flex items-center justify-between p-3 border rounded-lg cursor-pointer transition hover:bg-muted/30",
-                    selectedAgent?.id === agent.id &&
-                      "border-primary bg-primary/10"
-                  )}
-                  onClick={() => handleAssign(agent)}
+                  key={agentId}
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 transition"
                 >
                   <div className="flex items-center gap-2">
-                    {agent.image ? (
+                    {image ? (
                       <img
-                        src={agent.image}
-                        alt={agent.name}
+                        src={image}
+                        alt={name}
                         className="h-8 w-8 rounded-full object-cover"
                       />
                     ) : (
@@ -129,33 +200,29 @@ const AssignAgent = ({ initialAssignedAgents = [] }) => {
                     )}
                     <span
                       className="font-medium text-sm truncate max-w-[180px]"
-                      title={agent.name}
+                      title={name}
                     >
-                      {agent.name}
+                      {name}
                     </span>
                   </div>
 
-                  {selectedAgent?.id === agent.id && (
-                    <CheckCircle2 className="h-4 w-4 text-primary" />
-                  )}
+                  <Button
+                    size="sm"
+                    variant={assigned ? "destructive" : "default"}
+                    onClick={() => handleToggleAgent(agentId)}
+                    disabled={loadingAgent === agentId}
+                  >
+                    <AgentActionButton
+                      assigned={assigned}
+                      loading={loadingAgent === agentId}
+                    />
+                  </Button>
                 </div>
               );
             })}
-
-            {memberships.hasNextPage && (
-              <Button
-                size="sm"
-                onClick={() => memberships.fetchNext()}
-                className="mt-2 w-full"
-              >
-                Load More
-              </Button>
-            )}
           </div>
         </SheetContent>
       </Sheet>
     </div>
   );
 };
-
-export default AssignAgent;

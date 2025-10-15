@@ -1,9 +1,7 @@
 import dbConnect from "@/lib/dbConnect";
 import Contact from "@/models/Contact";
 import Conversation from "@/models/Conversation";
-import Lead from "@/models/Lead";
 import Organization from "@/models/Organization";
-import Message from "@/models/Message";
 import { NextResponse } from "next/server";
 import { handleMessageByType } from "@/helper/webhook-payload/message-handler";
 
@@ -35,45 +33,39 @@ export const POST = async (req) => {
       );
     }
 
-    let senderContact = await Contact.findOne({
-      primaryPhone: wa_id,
-      organizationId: org.org_id,
-    });
-
-    if (!senderContact) {
-      senderContact = await Contact.create({
-        primaryName: profile?.name || "",
-        primaryPhone: wa_id,
-        organizationId: org.org_id,
-        source: messagePayload.referral
-          ? "whatsapp_ad"
-          : "direct_message_received",
-        name: {
-          formatted_name: profile?.name || "",
+    const senderContact = await Contact.findOneAndUpdate(
+      { primaryPhone: wa_id, organizationId: org.org_id },
+      {
+        $setOnInsert: {
+          primaryName: profile?.name || "",
+          organizationId: org.org_id,
+          source: messagePayload.referral
+            ? "whatsapp_ad"
+            : "direct_message_received",
+          name: { formatted_name: profile?.name || "" },
+          phone: [{ phone: wa_id, wa_id: wa_id, type: "whatsapp" }],
+          wa_id: wa_id,
         },
-        phone: [{ phone: wa_id, wa_id: wa_id, type: "whatsapp" }],
-      });
-      console.log("🆕 New sender contact created:", senderContact.primaryPhone);
-    }
+      },
+      { new: true, upsert: true }
+    );
 
-    console.log("senderContact", senderContact);
-
-    let conversation = await Conversation.findOne({
-      contactId: senderContact._id,
-      organizationId: org.org_id,
-    });
-
-    if (!conversation) {
-      conversation = await Conversation.create({
-        organizationId: org.org_id,
+    const conversation = await Conversation.findOneAndUpdate(
+      {
         contactId: senderContact._id,
-        participants: [wa_id],
-        status: "open",
-        unreadCount: 0,
-        lastMessageAt: new Date(),
-        lastMessageId: null,
-      });
-    }
+        organizationId: org.org_id,
+        isDeleted: false,
+      },
+      {
+        $setOnInsert: {
+          participants: [wa_id],
+          status: "open",
+          unreadCount: 0,
+          lastMessageAt: new Date(),
+        },
+      },
+      { new: true, upsert: true }
+    );
 
     const message = await handleMessageByType({
       org,
@@ -82,10 +74,11 @@ export const POST = async (req) => {
       messagePayload,
     });
 
-    // ✅ Update conversation metadata
-    conversation.lastMessageAt = new Date();
-    conversation.lastMessageId = message._id;
-    await conversation.save();
+    await Conversation.findByIdAndUpdate(conversation._id, {
+      lastMessageId: message._id,
+      lastMessageAt: new Date(),
+      $inc: { unreadCount: 1 },
+    });
 
     return NextResponse.json(
       { message: "Message processed successfully", success: true },

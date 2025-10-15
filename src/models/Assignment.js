@@ -2,50 +2,46 @@ import mongoose from "mongoose";
 
 const assignmentSchema = new mongoose.Schema(
   {
+    organizationId: {
+      type: String,
+      required: true,
+      index: true,
+    },
+
     leadId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Lead",
       required: true,
+      index: true,
     },
+
     conversationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Conversation",
       default: null,
+      index: true,
     },
+
     agentId: {
-      type: String, // Clerk userId
+      type: String, // Clerk user ID
       required: true,
+      index: true,
     },
-    role: {
-      type: String,
-      enum: ["primary", "backup", "viewer"],
-      default: "primary",
-    },
-    status: {
-      type: String,
-      enum: ["active", "inactive"],
-      default: "active",
-    },
+
     assignedAt: {
       type: Date,
       default: Date.now,
     },
-    unassignedAt: {
-      type: Date,
-      default: null,
-    },
+
     metadata: {
       type: Object,
       default: {},
     },
   },
-  { timestamps: true }
+  { timestamps: true, versionKey: false }
 );
 
-// Indexes for performance
-assignmentSchema.index({ agentId: 1, status: 1 });
-assignmentSchema.index({ leadId: 1, status: 1 });
-assignmentSchema.index({ conversationId: 1, status: 1 });
+const Assignment =
+  mongoose.models.Assignment || mongoose.model("Assignment", assignmentSchema);
 
-const Assignment = mongoose.model("Assignment", assignmentSchema);
 export default Assignment;

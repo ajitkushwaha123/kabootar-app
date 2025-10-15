@@ -5,24 +5,34 @@ const messageSchema = new mongoose.Schema(
     conversationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Conversation",
+      required: true,
+      index: true,
     },
+
     senderId: {
-      type: String,
+      type: String, // Clerk user ID
       default: null,
     },
+
     organizationId: {
-      type: String,
+      type: String, // Clerk org ID
       required: true,
+      index: true,
     },
+
     senderType: {
       type: String,
       enum: ["agent", "admin", "system", "user"],
       required: true,
     },
+
     whatsappMessageId: {
       type: String,
+      trim: true,
       default: null,
+      index: true,
     },
+
     messageType: {
       type: String,
       enum: [
@@ -39,11 +49,12 @@ const messageSchema = new mongoose.Schema(
         "unsupported",
       ],
       default: "text",
+      index: true,
     },
 
     text: {
       preview_url: { type: Boolean, default: false },
-      body: { type: String },
+      body: { type: String, trim: true },
     },
 
     reaction: {
@@ -100,57 +111,56 @@ const messageSchema = new mongoose.Schema(
       details: { type: String },
     },
 
-    // 🔁 Reply reference
     context: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Message",
       default: null,
     },
 
-    // ↔️ Direction
     direction: {
       type: String,
       enum: ["incoming", "outgoing"],
       required: true,
+      index: true,
     },
 
-    // 🕓 Status
     status: {
       type: String,
       enum: ["pending", "sent", "delivered", "read", "failed", "received"],
       default: "sent",
+      index: true,
     },
 
-    // 🗑️ Soft delete
     isDeleted: {
       type: Boolean,
       default: false,
+      index: true,
     },
+
     deletedAt: {
       type: Date,
       default: null,
     },
 
-    // 🧾 Metadata
     metadata: {
       type: Object,
       default: {},
     },
 
-    // ⏱️ WhatsApp timestamp
     timestamp: {
       type: Date,
       required: true,
-      default: null,
+      index: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true, versionKey: false }
 );
 
-// 🔍 Indexes
+// Optimized indexes
 messageSchema.index({ conversationId: 1, createdAt: -1 });
-messageSchema.index({ organizationId: 1 });
-messageSchema.index({ organizationId: 1, direction: 1 });
+messageSchema.index({ organizationId: 1, direction: 1, timestamp: -1 });
+messageSchema.index({ organizationId: 1, isDeleted: 1 });
+messageSchema.index({ whatsappMessageId: 1 }, { sparse: true });
 
 const Message =
   mongoose.models.Message || mongoose.model("Message", messageSchema);
