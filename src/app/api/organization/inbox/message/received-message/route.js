@@ -74,11 +74,15 @@ export const POST = async (req) => {
       messagePayload,
     });
 
-    await Conversation.findByIdAndUpdate(conversation._id, {
-      lastMessageId: message._id,
-      lastMessageAt: new Date(),
-      $inc: { unreadCount: 1 },
-    });
+    await Conversation.findByIdAndUpdate(
+      conversation._id,
+      {
+        lastMessageId: message._id,
+        lastMessageAt: new Date(),
+        $inc: { unreadCount: 1 },
+      },
+      { new: true }
+    );
 
     return NextResponse.json(
       { message: "Message processed successfully", success: true },

@@ -1,33 +1,43 @@
 "use client";
 
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatPhone, UserAvatar } from "@/helper/transform";
-import { MarkAsLeadButton } from "../contact-details/MarkAsLeadButton";
+import { ChatHeaderSkeleton } from "@/components/skeleton/ChatHeaderSkeleton";
 
-export default function ChatHeader({ name, phone }) {
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import StickyChatHeader from "./sticky-chat-header";
+import ContactDetails from "./contact-details";
+export default function ChatHeader({ chatDetails }) {
   return (
-    <>
-      <Card className="border-0 rounded-none shadow-sm bg-white dark:bg-gray-900">
-        <CardHeader className="flex flex-row items-center justify-between px-4 cursor-pointer">
-          <div className="flex items-center gap-3">
-            <div className="relative h-10 w-10 rounded-full overflow-hidden border">
-              {UserAvatar({
-                name,
-                imageUrl: null,
-                size: "md",
-              })}
-            </div>
-            <div>
-              <CardTitle className="text-base font-semibold leading-tight">
-                {name || "-"}
-              </CardTitle>
-              <p className="text-xs text-muted-foreground mt-1">
-                {formatPhone(phone) || "-"}
-              </p>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
-    </>
+    <Sheet>
+      <SheetTrigger asChild>
+        <header
+          className="
+        sticky w-full top-0 z-10 bg-white dark:bg-black border-t border-gray-300 dark:border-gray-700"
+        >
+          <StickyChatHeader
+            name={chatDetails?.contactId?.primaryName}
+            phone={chatDetails?.contactId?.primaryPhone}
+          />
+        </header>
+      </SheetTrigger>
+
+      <SheetContent position="right" size="sm">
+        <SheetHeader>
+          <SheetTitle>Contact Details</SheetTitle>
+        </SheetHeader>
+        <ContactDetails
+          name={chatDetails?.contactId?.primaryName}
+          phone={chatDetails?.contactId?.primaryPhone}
+          isLead={chatDetails?.isLead}
+          leadId={chatDetails?.leadId}
+          conversationId={chatDetails?._id}
+        />
+      </SheetContent>
+    </Sheet>
   );
 }

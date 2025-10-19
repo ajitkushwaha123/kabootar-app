@@ -82,7 +82,6 @@ export const AssignAgent = ({ leadId = "" }) => {
 
   if (!memberships) return null;
 
-  // ------------------ Utils ------------------
   const isAssigned = (agentId) =>
     assignedAgents.some((a) => a.agentId === agentId);
 

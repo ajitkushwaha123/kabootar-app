@@ -67,15 +67,6 @@ export const useConversation = () => {
     [dispatch]
   );
 
-  const prevOrgIdRef = useRef(null);
-  useEffect(() => {
-    const currentOrgId = organization?.id;
-    if (currentOrgId && prevOrgIdRef.current !== currentOrgId) {
-      prevOrgIdRef.current = currentOrgId;
-      getConversations();
-    }
-  }, [organization?.id, getConversations]);
-
   return {
     conversations,
     loading,

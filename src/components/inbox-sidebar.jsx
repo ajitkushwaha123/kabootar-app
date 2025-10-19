@@ -41,6 +41,7 @@ import { useConversation } from "@/store/hooks/useConversation";
 import { InboxSidebarSkeleton } from "./skeleton/InboxSidebarSkeleton";
 import { EmptyState } from "./empty-state";
 import { renderMessageStatus } from "@/helper/ui-helper";
+import { useOrganization } from "@clerk/nextjs";
 
 const renderMessagePreview = (msg) => {
   const type = msg?.messageType;
@@ -75,7 +76,6 @@ const renderMessagePreview = (msg) => {
   );
 };
 
-// --- Static sidebar config ---
 const SIDEBAR_DATA = {
   user: {
     name: "shadcn",
@@ -95,6 +95,8 @@ export function InboxSidebar(props) {
   const [activeItem, setActiveItem] = React.useState(SIDEBAR_DATA.navMain[0]);
   const { setOpen } = useSidebar();
 
+  const { organization } = useOrganization();
+
   const {
     conversations,
     loading,
@@ -106,7 +108,7 @@ export function InboxSidebar(props) {
 
   React.useEffect(() => {
     getConversations();
-  }, []);
+  }, [organization?.id]);
 
   const handleNavClick = React.useCallback(
     (item) => {
